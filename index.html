@@ -137,16 +137,15 @@
             pointer-events: none;
         }
 
-        /* 상단 바 (테마 체인저 & 배경 업로더 탑재) */
+        /* 상단 바 (테마 체인저 & 우측 유틸리티 단추 그룹) */
         .top-bar {
             width: 100%;
             max-width: 800px;
             display: flex;
-            justify-content: center;
+            justify-content: space-between; /* 왼쪽에 테마 전환, 오른쪽에 유틸리티 정돈 */
             align-items: center;
             pointer-events: auto;
             margin-bottom: auto;
-            gap: 15px; /* 배경 업로더 버튼 공간 */
         }
 
         /* 테마 스위처 */
@@ -182,8 +181,16 @@
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         }
 
-        /* 플로팅 배경 업로더 버튼 */
-        .upload-trigger {
+        /* 우측 상단 유틸리티 단추 그룹 */
+        .utility-group {
+            display: flex;
+            gap: 8px;
+            pointer-events: auto;
+        }
+
+        /* 글래스모피즘 원형 버튼 통일 디자인 */
+        .upload-trigger,
+        .utility-btn {
             background: rgba(255, 255, 255, 0.25);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
@@ -199,16 +206,19 @@
             transition: all 0.3s ease;
         }
 
-        .upload-trigger:hover {
+        .upload-trigger:hover,
+        .utility-btn:hover {
             transform: scale(1.05);
             background: rgba(255, 255, 255, 0.35);
             box-shadow: 0 4px 15px rgba(255, 77, 109, 0.15);
         }
 
-        .upload-trigger svg {
+        .upload-trigger svg,
+        .utility-btn svg {
             width: 20px;
             height: 20px;
             fill: #333;
+            transition: fill 0.3s ease;
         }
 
         /* 중앙 미니멀 Love 카드 컨테이너 (정적 고정) */
@@ -293,6 +303,41 @@
             font-size: 38px;
         }
 
+        /* 페이드 효과가 들어간 영롱한 파스텔 토스트 알림 */
+        #toast {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translate(-50%, 50px);
+            background: rgba(255, 255, 255, 0.45);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            color: var(--text-main);
+            font-family: 'Noto Sans KR', sans-serif;
+            font-weight: bold;
+            font-size: 14px;
+            padding: 12px 28px;
+            border-radius: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s cubic-bezier(0.19, 1, 0.22, 1), transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+        
+        #toast.show {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+
+        body.theme-lovely #toast {
+            color: var(--lovely-text-main);
+            border: 1px solid rgba(255, 143, 171, 0.6);
+            box-shadow: 0 10px 30px rgba(255, 143, 171, 0.15);
+            background: rgba(255, 255, 255, 0.88);
+        }
+
         /* 모바일 반응형 조절 */
         @media (max-width: 480px) {
             .message-card {
@@ -312,6 +357,14 @@
             .theme-btn {
                 padding: 6px 12px;
                 font-size: 12px;
+            }
+            .top-bar {
+                flex-direction: column;
+                gap: 15px;
+                padding-top: 10px;
+            }
+            .card-container {
+                margin-top: 10px;
             }
         }
     </style>
@@ -338,14 +391,31 @@
                 <button class="theme-btn" onclick="switchTheme('pastel')">드림 파스텔</button>
             </div>
 
-            <!-- 미니멀 배경 파일 즉시 교체기 버튼 (하이브리드 입력 탑재) -->
-            <div class="upload-trigger" onclick="triggerBgUpload()" title="배경 변경 (내 파일 올리기 혹은 인터넷 URL 링크 연동)">
-                <svg viewBox="0 0 24 24">
-                    <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 4-1.79 4-4 0-2.05-1.55-3.84-3.65-3.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
-                </svg>
+            <!-- 우측 유틸리티 단추 그룹 -->
+            <div class="utility-group">
+                <!-- 배경 파일 업로드 버튼 (구름 아이콘) -->
+                <button class="upload-trigger" onclick="triggerBgUpload()" title="내 파일(사진/동영상)로 배경 변경">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 4-1.79 4-4 0-2.05-1.55-3.84-3.65-3.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+                    </svg>
+                </button>
+                <!-- 숨겨진 파일 인풋 컨트롤 -->
+                <input type="file" id="bgFileInput" accept="image/*, video/*" style="display: none;" onchange="handleBgFileChange(event)">
+
+                <!-- 링크 복사 버튼 (복사 아이콘) -->
+                <button class="utility-btn" onclick="copyShareLink()" title="주소창 링크 복사">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                    </svg>
+                </button>
+
+                <!-- 북마크 저장 유도 버튼 (별 아이콘) -->
+                <button class="utility-btn" onclick="showBookmarkGuide()" title="이 주소 북마크(즐겨찾기) 추가">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                    </svg>
+                </button>
             </div>
-            <!-- 숨겨진 파일 인풋 컨트롤 -->
-            <input type="file" id="bgFileInput" accept="image/*, video/*" style="display: none;" onchange="handleBgFileChange(event)">
         </header>
 
         <!-- 중앙 미니멀 Love 카드 (고정형 정적 카드) -->
@@ -359,20 +429,21 @@
 
     </div>
 
-    <!-- 스크립트: Canvas 파티클, 테마 스위처, 인플레이스 더블클릭 편집, 배경 즉시 업로더 및 URL 동기화 -->
+    <!-- 플로팅 토스트 파스텔 메세지 박스 -->
+    <div id="toast"></div>
+
+    <!-- 스크립트: Canvas 파티클, 테마 스위처, 인플레이스 더블클릭 편집, 배경 GZIP 업로드, 토스트 및 URL 해시 동기화 -->
     <script>
         // ==========================================
-        // 1. [하이브리드 파라미터 파서 개편] # 해시 스키마와 ? 쿼리 동시 디코딩 지원 (완벽한 후방 호환 보장)
+        // 1. [하이브리드 파라미터 파서] # 해시 스키마와 ? 쿼리 동시 디코딩 지원
         // ==========================================
         function getParam(name) {
-            // 1순위: 주소창 해시(#) 뒤의 앵커 파라미터 파싱 (서버로 전송되지 않는 영리한 영역)
             const hash = window.location.hash.substring(1);
             const hashParams = new URLSearchParams(hash);
             if (hashParams.has(name)) {
                 return decodeURIComponent(hashParams.get(name));
             }
             
-            // 2순위: 전통적 물음표(?) 쿼리 파라미터 파싱 (하위 호환성 보장)
             const queryParams = new URLSearchParams(window.location.search);
             if (queryParams.has(name)) {
                 return decodeURIComponent(queryParams.get(name));
@@ -380,7 +451,7 @@
             return null;
         }
 
-        // [신규 주소창 Hash 동적 업데이트 엔진] - 서버 HTTP 414 URI Too Long 완벽 격리 해결책
+        // [주소창 Hash 동적 업데이트 엔진] - 서버 HTTP 414 URI Too Long 원천 격리
         function updateUrlHash(updates) {
             const hash = window.location.hash.substring(1);
             const hashParams = new URLSearchParams(hash);
@@ -397,7 +468,7 @@
             const newHash = hashParams.toString();
             const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
 
-            // 주소창의 ? 쿼리 영역은 말끔히 걷어내고, 오직 # 뒤로만 데이터를 깔끔하게 누적 (replaceState 구동)
+            // 주소창의 ? 쿼리 영역은 말끔히 제거하고, 오직 # 뒤로만 데이터 누적
             window.history.replaceState({}, '', cleanUrl + (newHash ? '#' + newHash : ''));
         }
 
@@ -516,7 +587,7 @@
                 recipientNameEl.classList.remove('english-you');
             }
 
-            // URL 해시 파라미터 n 업데이트 (새로고침 없이 실시간 연동)
+            // URL 해시 파라미터 n 업데이트
             updateUrlHash({ n: updatedName });
         }
 
@@ -545,7 +616,7 @@
         });
 
         // ==========================================
-        // 4. 로컬 컴퓨터 배경 파일 업로드 및 실시간 GZIP 해시 스키마 연동
+        // 4. 로컬 컴퓨터 배경 파일 업로드 및 GZIP 스트림 압축 & 유틸리티 복사/북마크 기능
         // ==========================================
         const bgVideoEl = document.getElementById('bgVideo');
         const bgImageEl = document.getElementById('bgImage');
@@ -591,20 +662,42 @@
             return bytes;
         }
 
-        // 업로드 버튼 클릭 시 마우스 파일 탐색기 연동 혹은 인터넷 공유 주소 연동 선택 유도
+        // [사용자 요구사항 반영 1] 업로드 시 confirm과 url 입력칸 완전 배제 ➜ 클릭 시 곧바로 파일 탐색기 작동!
         function triggerBgUpload() {
-            const uploadChoice = confirm("📂 내 컴퓨터에 있는 사진(이미지)이나 동영상 파일을 올리시겠습니까?\n\n(웹상에 배포된 이미지 주소나 동영상 URL 링크로 변경해 다른 사람과 영구 공유하시려면 [취소]를 누르세요!)");
-            if (uploadChoice) {
-                fileInputEl.click(); 
-            } else {
-                const webUrl = prompt("🔗 웹상에 배포된 이미지 주소(.jpg, .png 등)나 동영상 링크(.mp4) 주소 URL을 직접 입력해 주세요:\n\n(예: https://example.com/movie.mp4)");
-                if (webUrl && webUrl.trim() !== '') {
-                    applyWebBgUrl(webUrl.trim());
-                }
-            }
+            fileInputEl.click(); 
         }
 
-        // 수동 파일 로드 시 Gzip 무손실 스트림 압축 가동 (해시 앵커 연동 적용)
+        // [사용자 요구사항 반영 2] 링크 복사 및 세련된 토스트 알림 탑재
+        let toastTimer = null;
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.innerText = message;
+            toast.classList.add('show');
+            
+            if (toastTimer) clearTimeout(toastTimer);
+            
+            toastTimer = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2500);
+        }
+
+        function copyShareLink() {
+            const url = window.location.href;
+            navigator.clipboard.writeText(url).then(() => {
+                showToast("클립보드에 나만의 정원 주소가 복사되었습니다! ❤️");
+            }).catch(err => {
+                showToast("주소 복사에 실패했습니다. 브라우저 주소창 주소를 복사해 주세요!");
+            });
+        }
+
+        // [사용자 요구사항 반영 3] 즐겨찾기 안내 팝업 유도
+        function showBookmarkGuide() {
+            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+            const keyCombo = isMac ? 'Cmd + D' : 'Ctrl + D';
+            showToast(`⭐ ${keyCombo} 키를 눌러 이 소중한 정원을 즐겨찾기에 등록해 보세요!`);
+        }
+
+        // 수동 파일 로드 시 Gzip 무손실 스트림 압축 가동 (해시 앵커 연동)
         async function handleBgFileChange(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -614,14 +707,14 @@
                 compressAndSyncImage(file);
                 
             } else if (file.type.startsWith('video/')) {
-                // [비디오 업로드 - 1MB 이하 Gzip 압축 연동]
+                // [비디오 업로드 - Gzip 압축 연동]
                 const maxBytes = 1024 * 1024; // 1MB 제한
                 if (file.size > maxBytes) {
-                    alert("⚠️ 동영상 파일 크기가 1MB를 초과합니다!\n\n1MB 이하의 비디오만 무손실 압축 후 주소창 해시 쿼리에 영구 수납 공유할 수 있습니다.\n\n(대용량 동영상의 웹 URL 링크 공유는 배경 버튼을 다시 누르고 [취소]를 선택해 계속 이용하실 수 있습니다.)");
+                    alert("⚠️ 동영상 파일 크기가 1MB를 초과합니다!\n\n1MB 이하의 비디오만 무손실 압축 후 주소창 해시 쿼리에 안전 수납 공유가 가능합니다.");
                     return;
                 }
 
-                // 렉 없는 즉각 화면 갱신을 위해 Blob URL 생성
+                // 즉시 로딩 처리
                 const blobUrl = URL.createObjectURL(file);
                 bgVideoEl.src = blobUrl;
                 bgVideoEl.load();
@@ -633,7 +726,6 @@
                 bgImageEl.style.opacity = '0';
 
                 try {
-                    // [기본 Gzip 압축 및 Base64 인코딩 연동 시작]
                     const arrayBuffer = await file.arrayBuffer();
                     const compressedBuffer = await compressGzip(arrayBuffer); 
                     const base64Data = await arrayBufferToBase64(compressedBuffer); 
@@ -642,6 +734,7 @@
                     
                     // 주소창 해시 파라미터 v에 대입 (ReplaceState 연계로 서버 HTTP 414 원천 차단!)
                     updateUrlHash({ v: gzipVideoUrl, img: '' });
+                    showToast("🎥 배경 동영상이 Gzip 무손실 압축되어 주소창에 저장되었습니다! 바로 공유해 보세요!");
                     
                 } catch (compressErr) {
                     console.error("Gzip 압축 연동 도중 에러: ", compressErr);
@@ -682,37 +775,14 @@
                     
                     // 해시 'img' 업데이트 및 'v' 제거
                     updateUrlHash({ img: compressedBase64, v: '' });
+                    showToast("🖼️ 배경 이미지가 초경량 압축되어 주소창에 수납되었습니다! 자유롭게 공유해 보세요!");
                 };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
         }
 
-        // 인터넷 URL 주소 입력 시 해시 파라미터 및 화면 자동 갱신 적용
-        function applyWebBgUrl(urlText) {
-            const lowerUrl = urlText.toLowerCase();
-
-            if (lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.webm') || lowerUrl.includes('video') || lowerUrl.includes('movie')) {
-                bgVideoEl.src = urlText;
-                bgVideoEl.load();
-                bgVideoEl.muted = true;
-                bgVideoEl.loop = true;
-                bgVideoEl.play().catch(err => console.log('BGM 재생제한'));
-
-                bgVideoEl.style.opacity = (currentTheme === 'lovely') ? '0.3' : '0.45';
-                bgImageEl.style.opacity = '0';
-
-                updateUrlHash({ v: urlText, img: '' });
-            } else {
-                bgImageEl.style.backgroundImage = `url(${urlText})`;
-                bgImageEl.style.opacity = (currentTheme === 'lovely') ? '0.3' : '0.45';
-                bgVideoEl.style.opacity = '0';
-
-                updateUrlHash({ img: urlText, v: '' });
-            }
-        }
-
-        // [비동기 초기 비디오 디코딩 및 구동 함수]
+        // 비동기 초기 비디오 디코딩 및 구동 함수
         async function loadInitialGzipVideo(base64Stream) {
             try {
                 const base64String = base64Stream.split(',')[1];
@@ -1032,7 +1102,7 @@
 
         // 마우스 클릭 시 하트 폭죽 트리거 & 연타 감지
         window.addEventListener('mousedown', (e) => {
-            if (e.target.closest('.theme-selector') || e.target.closest('#recipientName') || e.target.closest('.upload-trigger')) return;
+            if (e.target.closest('.theme-selector') || e.target.closest('#recipientName') || e.target.closest('.upload-trigger') || e.target.closest('.utility-btn')) return;
             
             handleComboDetection(e.clientX, e.clientY);
             triggerBurst(e.clientX, e.clientY);
@@ -1042,7 +1112,7 @@
         window.addEventListener('touchstart', (e) => {
             if (e.touches[0]) {
                 const t = e.touches[0];
-                if (t.target.closest('.theme-selector') || t.target.closest('#recipientName') || t.target.closest('.upload-trigger')) return;
+                if (t.target.closest('.theme-selector') || t.target.closest('#recipientName') || t.target.closest('.upload-trigger') || t.target.closest('.utility-btn')) return;
                 
                 handleComboDetection(t.clientX, t.clientY);
                 triggerBurst(t.clientX, t.clientY);

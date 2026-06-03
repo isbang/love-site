@@ -362,19 +362,47 @@
     <!-- 스크립트: Canvas 파티클, 테마 스위처, 인플레이스 더블클릭 편집, 배경 즉시 업로더 및 URL 동기화 -->
     <script>
         // ==========================================
-        // 1. URL 파라미터 파싱 및 이름 바인딩
+        // 1. [하이브리드 파라미터 파서 개편] # 해시 스키마와 ? 쿼리 동시 디코딩 지원 (완벽한 후방 호환 보장)
         // ==========================================
-        function getParameterByName(name, url = window.location.href) {
-            name = name.replace(/[\[\]]/g, '\\$&');
-            const regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)');
-            const results = regex.exec(url);
-            if (!results) return null;
-            if (!results[2]) return '';
-            return decodeURIComponent(results[2].replace(/\+/g, ' '));
+        function getParam(name) {
+            // 1순위: 주소창 해시(#) 뒤의 앵커 파라미터 파싱 (서버로 전송되지 않는 영리한 영역)
+            const hash = window.location.hash.substring(1);
+            const hashParams = new URLSearchParams(hash);
+            if (hashParams.has(name)) {
+                return decodeURIComponent(hashParams.get(name));
+            }
+            
+            // 2순위: 전통적 물음표(?) 쿼리 파라미터 파싱 (하위 호환성 보장)
+            const queryParams = new URLSearchParams(window.location.search);
+            if (queryParams.has(name)) {
+                return decodeURIComponent(queryParams.get(name));
+            }
+            return null;
         }
 
-        // 이름 파라미터 및 바인딩
-        const nameParam = getParameterByName('n');
+        // [신규 주소창 Hash 동적 업데이트 엔진] - 서버 HTTP 414 URI Too Long 완벽 격리 해결책
+        function updateUrlHash(updates) {
+            const hash = window.location.hash.substring(1);
+            const hashParams = new URLSearchParams(hash);
+
+            // 변경 사항 반영
+            for (const [key, value] of Object.entries(updates)) {
+                if (value !== undefined && value !== null && value !== '') {
+                    hashParams.set(key, value);
+                } else {
+                    hashParams.delete(key);
+                }
+            }
+
+            const newHash = hashParams.toString();
+            const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
+
+            // 주소창의 ? 쿼리 영역은 말끔히 걷어내고, 오직 # 뒤로만 데이터를 깔끔하게 누적 (replaceState 구동)
+            window.history.replaceState({}, '', cleanUrl + (newHash ? '#' + newHash : ''));
+        }
+
+        // 이름 파라미터 해독 및 바인딩
+        const nameParam = getParam('n');
         const recipientNameEl = document.getElementById('recipientName');
 
         if (nameParam && nameParam.trim() !== '') {
@@ -388,8 +416,8 @@
             recipientNameEl.innerText = 'You';
         }
 
-        // 초기 테마 파라미터 파싱 (?t=lovely 혹은 ?theme=lovely)
-        const themeParam = getParameterByName('t') || getParameterByName('theme');
+        // 초기 테마 파라미터 파싱
+        const themeParam = getParam('t') || getParam('theme');
         let initialTheme = 'pastel'; // 디폴트는 파스텔
         
         if (themeParam === 'lovely' || themeParam === 'pastel') {
@@ -400,7 +428,7 @@
         document.body.className = `theme-${initialTheme}`;
 
         // ==========================================
-        // 2. 테마 스위처 설정 (Lovely / Pastel 지원 + History API 동기화)
+        // 2. 테마 스위처 설정 (Lovely / Pastel 지원 + 해시 스키마 연계)
         // ==========================================
         let currentTheme = initialTheme;
 
@@ -429,7 +457,7 @@
             const btnIdx = { lovely: 0, pastel: 1 };
             buttons[btnIdx[themeName]].classList.add('active');
 
-            // [사용자 피드백 반영] 동영상/이미지 업로드 존재 여부에 따른 투명도 자동 정비
+            // 동영상/이미지 업로드 존재 여부에 따른 투명도 자동 정비
             const isBgVideoActive = bgVideoEl.hasAttribute('src') && bgVideoEl.src !== '';
             const isBgImageActive = bgImageEl.style.backgroundImage && bgImageEl.style.backgroundImage !== '';
 
@@ -448,16 +476,14 @@
             // 테마별 하트 캔버스 파티클 풀 리셋
             initHearts();
 
-            // 사용자가 수동 변경 시 페이지 리로드 없이 주소창 쿼리 파라미터 업데이트 (공유성 극대화)
+            // 사용자가 수동 변경 시 페이지 리로드 없이 주소창 해시 쿼리 동적 업데이트
             if (!isInitial) {
-                const url = new URL(window.location.href);
-                url.searchParams.set('t', themeName);
-                window.history.replaceState({}, '', url.toString());
+                updateUrlHash({ t: themeName });
             }
         }
 
         // ==========================================
-        // 3. 인플레이스 이름 변경 & 더블클릭 및 URL 갱신 이벤트
+        // 3. 인플레이스 이름 변경 & 더블클릭 및 해시 갱신 이벤트
         // ==========================================
         
         // 더블 클릭 시 편집 활성화
@@ -490,14 +516,8 @@
                 recipientNameEl.classList.remove('english-you');
             }
 
-            // URL 쿼리 파라미터 n 업데이트 (새로고침 없이)
-            const url = new URL(window.location.href);
-            if (updatedName !== '') {
-                url.searchParams.set('n', updatedName);
-            } else {
-                url.searchParams.delete('n'); // You 기본형일 땐 파라미터 깔끔히 제거
-            }
-            window.history.replaceState({}, '', url.toString());
+            // URL 해시 파라미터 n 업데이트 (새로고침 없이 실시간 연동)
+            updateUrlHash({ n: updatedName });
         }
 
         // 포커스 아웃 시 저장
@@ -511,7 +531,7 @@
             }
             if (e.key === 'Escape') {
                 e.preventDefault();
-                const originalName = getParameterByName('n');
+                const originalName = getParam('n');
                 if (originalName && originalName.trim() !== '') {
                     recipientNameEl.classList.remove('english-you');
                     recipientNameEl.innerText = originalName;
@@ -525,7 +545,7 @@
         });
 
         // ==========================================
-        // 4. 로컬 컴퓨터 배경 파일 업로드 및 실시간 GZIP 쿼리 파라미터 자동 연동
+        // 4. 로컬 컴퓨터 배경 파일 업로드 및 실시간 GZIP 해시 스키마 연동
         // ==========================================
         const bgVideoEl = document.getElementById('bgVideo');
         const bgImageEl = document.getElementById('bgImage');
@@ -584,20 +604,20 @@
             }
         }
 
-        // 수동 파일 로드 시 Gzip 무손실 스트림 압축 가동
+        // 수동 파일 로드 시 Gzip 무손실 스트림 압축 가동 (해시 앵커 연동 적용)
         async function handleBgFileChange(e) {
             const file = e.target.files[0];
             if (!file) return;
 
             if (file.type.startsWith('image/')) {
-                // 이미지 업로드 시 가로 180px 압축 후 Base64 주소창 동기화
+                // 이미지 업로드 시 가로 180px 압축 후 해시 스키마 동기화
                 compressAndSyncImage(file);
                 
             } else if (file.type.startsWith('video/')) {
-                // [비디오 업로드 - Gzip 압축 연동]
+                // [비디오 업로드 - 1MB 이하 Gzip 압축 연동]
                 const maxBytes = 1024 * 1024; // 1MB 제한
                 if (file.size > maxBytes) {
-                    alert("⚠️ 동영상 파일 크기가 1MB를 초과합니다!\n\n브라우저의 주소 보존 제한에 맞추어, 1MB 이하로 압축된 가벼운 동영상 파일만 Gzip 압축 후 주소창 쿼리에 실시간 수납 공유가 가능합니다.\n\n(대용량 동영상의 웹 URL 링크 공유는 배경 버튼을 다시 누르고 [취소]를 선택해 계속 이용하실 수 있습니다.)");
+                    alert("⚠️ 동영상 파일 크기가 1MB를 초과합니다!\n\n1MB 이하의 비디오만 무손실 압축 후 주소창 해시 쿼리에 영구 수납 공유할 수 있습니다.\n\n(대용량 동영상의 웹 URL 링크 공유는 배경 버튼을 다시 누르고 [취소]를 선택해 계속 이용하실 수 있습니다.)");
                     return;
                 }
 
@@ -620,10 +640,8 @@
                     
                     const gzipVideoUrl = `data:video/mp4;gzip;base64,${base64Data}`;
                     
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('v', gzipVideoUrl);
-                    url.searchParams.delete('img');
-                    window.history.replaceState({}, '', url.toString());
+                    // 주소창 해시 파라미터 v에 대입 (ReplaceState 연계로 서버 HTTP 414 원천 차단!)
+                    updateUrlHash({ v: gzipVideoUrl, img: '' });
                     
                 } catch (compressErr) {
                     console.error("Gzip 압축 연동 도중 에러: ", compressErr);
@@ -631,7 +649,7 @@
             }
         }
 
-        // 이미지 초경량 압축 변환 및 ?img 쿼리 실시간 동기화
+        // 이미지 초경량 압축 변환 및 해시 'img' 실시간 동기화
         function compressAndSyncImage(file) {
             const reader = new FileReader();
             reader.onload = function(event) {
@@ -662,19 +680,16 @@
                     bgImageEl.style.opacity = (currentTheme === 'lovely') ? '0.3' : '0.45';
                     bgVideoEl.style.opacity = '0';
                     
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('img', compressedBase64);
-                    url.searchParams.delete('v');
-                    window.history.replaceState({}, '', url.toString());
+                    // 해시 'img' 업데이트 및 'v' 제거
+                    updateUrlHash({ img: compressedBase64, v: '' });
                 };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
         }
 
-        // 인터넷 URL 주소 입력 시 쿼리 파라미터 및 화면 자동 갱신 적용
+        // 인터넷 URL 주소 입력 시 해시 파라미터 및 화면 자동 갱신 적용
         function applyWebBgUrl(urlText) {
-            const url = new URL(window.location.href);
             const lowerUrl = urlText.toLowerCase();
 
             if (lowerUrl.endsWith('.mp4') || lowerUrl.endsWith('.webm') || lowerUrl.includes('video') || lowerUrl.includes('movie')) {
@@ -687,21 +702,17 @@
                 bgVideoEl.style.opacity = (currentTheme === 'lovely') ? '0.3' : '0.45';
                 bgImageEl.style.opacity = '0';
 
-                url.searchParams.set('v', urlText);
-                url.searchParams.delete('img');
+                updateUrlHash({ v: urlText, img: '' });
             } else {
                 bgImageEl.style.backgroundImage = `url(${urlText})`;
                 bgImageEl.style.opacity = (currentTheme === 'lovely') ? '0.3' : '0.45';
                 bgVideoEl.style.opacity = '0';
 
-                url.searchParams.set('img', urlText);
-                url.searchParams.delete('v');
+                updateUrlHash({ img: urlText, v: '' });
             }
-
-            window.history.replaceState({}, '', url.toString());
         }
 
-        // 비동기 초기 비디오 디코딩 및 구동 함수
+        // [비동기 초기 비디오 디코딩 및 구동 함수]
         async function loadInitialGzipVideo(base64Stream) {
             try {
                 const base64String = base64Stream.split(',')[1];
@@ -724,9 +735,9 @@
             }
         }
 
-        // 초기 기동 시 URL 쿼리 파라미터(?v= 와 ?img=) 해독 및 배경 즉시 기동 구현 (Gzip 디코더 포함)
-        const videoParam = getParameterByName('v') || getParameterByName('video');
-        const imageParam = getParameterByName('img') || getParameterByName('image');
+        // 초기 기동 시 URL 해시 및 ? 쿼리(?v=, ?img=, #v=, #img=) 해독 및 배경 즉시 기동 구현
+        const videoParam = getParam('v') || getParam('video');
+        const imageParam = getParam('img') || getParam('image');
 
         if (imageParam && imageParam.trim() !== '') {
             bgImageEl.style.backgroundImage = `url(${imageParam})`;
@@ -743,7 +754,7 @@
                 bgImageEl.style.opacity = '0';
             }
         } else {
-            // [사용자 피드백 반영] 둘 다 없으면 기본 복사 비디오 로드를 완전 중지하고 미동 없는 맑은 테마 그라데이션만 노출!
+            // 둘 다 없으면 기본 그라데이션만 노출
             bgVideoEl.removeAttribute('src');
             bgVideoEl.style.opacity = '0';
             bgImageEl.style.opacity = '0';

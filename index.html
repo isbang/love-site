@@ -875,6 +875,12 @@
         let bursts = [];
         let giantHearts = []; // 콤보 시 강림하는 거대 하트 저장용 배열
         
+        // 콤보 및 거대 하트 소환용 변수 선언 추가
+        let lastClickTime = 0;
+        let clickComboCount = 0;
+        const COMBO_TIMEOUT = 350;     // 350ms(0.35초) 이내의 연속 클릭을 콤보로 인정
+        const COMBO_THRESHOLD = 5;     // 5회 이상 연속 클릭 시 거대 3D 젤리 하트 강림
+        
         // [모바일 기동 판단 하트 개수 최적화]
         const isMobileDevice = window.innerWidth <= 480;
         const maxHearts = isMobileDevice ? 40 : 75; // 모바일 가든은 아기자기하고 리소스 가속을 위해 40개 파티클로 최적화!

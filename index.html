@@ -507,6 +507,12 @@
             window.history.replaceState({}, '', cleanUrl + (newHash ? '#' + newHash : ''));
         }
 
+        // 페이지 타이틀 동적 업데이트 함수
+        function updatePageTitle(name) {
+            const displayName = (name && name.trim() !== '') ? name.trim() : 'You';
+            document.title = `Love ${displayName} ❤️`;
+        }
+
         // 이름 파라미터 해독 및 바인딩
         const nameParam = getParam('n');
         const recipientNameEl = document.getElementById('recipientName');
@@ -517,9 +523,11 @@
             });
             recipientNameEl.classList.remove('english-you');
             recipientNameEl.innerText = safeName;
+            updatePageTitle(safeName);
         } else {
             recipientNameEl.classList.add('english-you');
             recipientNameEl.innerText = 'You';
+            updatePageTitle('You');
         }
 
         // 초기 테마 파라미터 파싱
@@ -624,6 +632,9 @@
 
             // URL 해시 파라미터 n 업데이트
             updateUrlHash({ n: updatedName });
+            
+            // 브라우저 타이틀 실시간 업데이트
+            updatePageTitle(updatedName);
         }
 
         // 포커스 아웃 시 저장
@@ -641,9 +652,11 @@
                 if (originalName && originalName.trim() !== '') {
                     recipientNameEl.classList.remove('english-you');
                     recipientNameEl.innerText = originalName;
+                    updatePageTitle(originalName);
                 } else {
                     recipientNameEl.classList.add('english-you');
                     recipientNameEl.innerText = 'You';
+                    updatePageTitle('You');
                 }
                 recipientNameEl.contentEditable = "false";
                 recipientNameEl.blur();

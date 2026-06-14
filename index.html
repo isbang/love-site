@@ -74,44 +74,60 @@
             min-height: 100dvh; 
         }
 
-        /* 배경 비디오 스타일 */
-        #bgVideo {
+        /* 배경 미디어 공통 스타일 */
+        #bgVideo, #bgImage, #bgYoutube {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            z-index: 0;
-            pointer-events: none; /* 클릭 이벤트 투과 */
-            opacity: 0; /* 기본적으로 비디오는 비워두어 숨겨둠 (동적 쿼리에 반응) */
-            mix-blend-mode: overlay; /* 테마 배경색과 정교하게 혼합 */
-            transition: opacity 1s ease, filter 1s ease;
-        }
-
-        /* 업로드용 이미지 배경 플레이어 (부드러운 디졸브 지원) */
-        #bgImage {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-size: cover;
-            background-position: center;
+            top: 50%;
+            left: 50%;
+            width: 100vw;
+            height: 100vh;
             z-index: 0;
             pointer-events: none;
-            opacity: 0; /* 평소에는 숨김 */
-            mix-blend-mode: overlay; /* 테마색과 오버레이 */
+            opacity: 0;
             transition: opacity 1s ease, filter 1s ease;
+            border: none;
         }
 
-        /* 테마별 비디오/이미지 무드 필터 동적 연출 */
+        /* 유튜브 UI 마스킹: 영상을 1.15배 키우고 중앙 정렬하여 테두리의 제목/로고를 화면 밖으로 밀어냄 */
+        #bgYoutube {
+            transform: translate(-50%, -50%) scale(1.15);
+        }
+
+        /* 일반 비디오/이미지는 정배율 정렬 */
+        #bgVideo, #bgImage {
+            transform: translate(-50%, -50%);
+            object-fit: cover;
+            mix-blend-mode: overlay;
+        }
+
+        /* 유튜브 전용 Cover 로직 (16:9 비율 기준) */
+        @media (min-aspect-ratio: 16/9) {
+            #bgYoutube {
+                width: 100vw;
+                height: 56.25vw;
+            }
+        }
+        @media (max-aspect-ratio: 16/9) {
+            #bgYoutube {
+                width: 177.78vh;
+                height: 100vh;
+            }
+        }
+
+        /* 유튜브는 mix-blend-mode가 불안정하므로 필터로 무드 조절 */
+        #bgYoutube {
+            /* 유튜브의 경우 mix-blend-mode: overlay가 작동하지 않을 수 있어 투명도로 조절 */
+        }
+
+        /* 테마별 무드 필터 */
         body.theme-lovely #bgVideo,
-        body.theme-lovely #bgImage {
+        body.theme-lovely #bgImage,
+        body.theme-lovely #bgYoutube {
             filter: grayscale(0.2) sepia(0.1) hue-rotate(-20deg) brightness(1.05);
         }
         body.theme-pastel #bgVideo,
-        body.theme-pastel #bgImage {
+        body.theme-pastel #bgImage,
+        body.theme-pastel #bgYoutube {
             filter: none;
         }
 
@@ -227,6 +243,60 @@
             height: 20px;
             fill: #333;
             transition: fill 0.3s ease;
+        }
+
+        /* 미디어 선택 메뉴 스타일 */
+        .media-menu {
+            position: absolute;
+            top: 60px;
+            right: 0;
+            background: rgba(255, 255, 255, 0.45);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            opacity: 0;
+            transform: translateY(-10px);
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+            z-index: 100;
+        }
+
+        .media-menu.show {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .media-option {
+            padding: 10px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            cursor: pointer;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s ease;
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+
+        .media-option:hover {
+            background: rgba(255, 255, 255, 0.4);
+            color: var(--primary-color);
+        }
+
+        .media-option svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
         }
 
         /* 중앙 미니멀 Love 카드 컨테이너 (정적 고정) */
@@ -406,10 +476,13 @@
 </head>
 <body>
 
-    <!-- 감성 배경 비디오 (기본 src 제거완료, 동적 쿼리에 반응) -->
+    <!-- 감성 배경 비디오 -->
     <video id="bgVideo" autoplay muted loop playsinline></video>
+    
+    <!-- 외부 영상(유튜브 등) 배경용 iframe -->
+    <iframe id="bgYoutube" allow="autoplay; encrypted-media"></iframe>
 
-    <!-- 업로드용 이미지 배경 레이어 (부드러운 상호 디졸브 전환용) -->
+    <!-- 업로드용 이미지 배경 레이어 -->
     <div id="bgImage"></div>
 
     <!-- 하트 파티클을 60fps로 흩날려 줄 Canvas -->
@@ -429,18 +502,39 @@
             <!-- 우측 유틸리티 단추 그룹 -->
             <div class="utility-group">
                 <!-- 배경 파일 업로드 버튼 (구름 아이콘) -->
-                <button class="upload-trigger" onclick="triggerBgUpload()" title="내 파일(사진/동영상)로 배경 변경">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 4-1.79 4-4 0-2.05-1.55-3.84-3.65-3.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
-                    </svg>
-                </button>
-                <!-- 숨겨진 파일 인풋 컨트롤 -->
-                <input type="file" id="bgFileInput" accept="image/*, video/*" style="display: none;" onchange="handleBgFileChange(event)">
+                <div style="position: relative;">
+                    <button class="upload-trigger" onclick="toggleMediaMenu(event)" title="배경 변경 (사진 업로드/동영상 링크)">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 4-1.79 4-4 0-2.05-1.55-3.84-3.65-3.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+                        </svg>
+                    </button>
+                    <!-- 미디어 선택 메뉴 -->
+                    <div id="mediaMenu" class="media-menu">
+                        <div class="media-option" onclick="triggerImageUpload()">
+                            <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                            이미지 업로드
+                        </div>
+                        <div class="media-option" onclick="promptVideoUrl()">
+                            <svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+                            동영상 URL 입력
+                        </div>
+                    </div>
+                </div>
+                <!-- 숨겨진 파일 인풋 컨트롤 (이미지만 받도록 수정) -->
+                <input type="file" id="bgFileInput" accept="image/*" style="display: none;" onchange="handleBgFileChange(event)">
 
                 <!-- 링크 복사 버튼 (복사 아이콘) -->
                 <button class="utility-btn" onclick="copyShareLink()" title="주소창 링크 복사">
                     <svg viewBox="0 0 24 24">
                         <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                    </svg>
+                </button>
+
+                <!-- 소리 토글 버튼 (추가 - 초기엔 숨김) -->
+                <button id="soundToggleBtn" class="utility-btn" onclick="toggleSound()" title="배경 음악 켜기/끄기" style="display: none;">
+                    <svg id="soundIcon" viewBox="0 0 24 24">
+                        <!-- 기본값: 음소거 아이콘 -->
+                        <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.06.05-.11.1-.17.14L16.25 19l1.27-1.27L13 13.47 4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
                     </svg>
                 </button>
 
@@ -573,17 +667,24 @@
 
             // 동영상/이미지 업로드 존재 여부에 따른 투명도 자동 정비
             const isBgVideoActive = bgVideoEl.hasAttribute('src') && bgVideoEl.src !== '';
+            const isBgYoutubeActive = bgYoutubeEl.hasAttribute('src') && bgYoutubeEl.src !== '';
             const isBgImageActive = bgImageEl.style.backgroundImage && bgImageEl.style.backgroundImage !== '';
 
             if (isBgVideoActive) {
                 bgVideoEl.style.opacity = (themeName === 'lovely') ? '0.3' : '0.45';
+                bgYoutubeEl.style.opacity = '0';
+                bgImageEl.style.opacity = '0';
+            } else if (isBgYoutubeActive) {
+                bgYoutubeEl.style.opacity = (themeName === 'lovely') ? '0.3' : '0.45';
+                bgVideoEl.style.opacity = '0';
                 bgImageEl.style.opacity = '0';
             } else if (isBgImageActive) {
                 bgImageEl.style.opacity = (themeName === 'lovely') ? '0.3' : '0.45';
                 bgVideoEl.style.opacity = '0';
+                bgYoutubeEl.style.opacity = '0';
             } else {
-                // 어떤 영상/사진도 없을 때는 순수 그라데이션만 보이도록 투명도 0 고정!
                 bgVideoEl.style.opacity = '0';
+                bgYoutubeEl.style.opacity = '0';
                 bgImageEl.style.opacity = '0';
             }
 
@@ -667,6 +768,7 @@
         // 4. 로컬 컴퓨터 배경 파일 업로드 및 GZIP 스트림 압축 & 유틸리티 복사/북마크 기능
         // ==========================================
         const bgVideoEl = document.getElementById('bgVideo');
+        const bgYoutubeEl = document.getElementById('bgYoutube');
         const bgImageEl = document.getElementById('bgImage');
         const fileInputEl = document.getElementById('bgFileInput');
 
@@ -710,9 +812,154 @@
             return bytes;
         }
 
-        // [사용자 요구사항 반영 1] 업로드 시 confirm과 url 입력칸 완전 배제 ➜ 클릭 시 곧바로 파일 탐색기 작동!
-        function triggerBgUpload() {
+        // [사용자 요구사항 반영 1] 업로드 버튼 클릭 시 메뉴 토글
+        function toggleMediaMenu(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('mediaMenu');
+            menu.classList.toggle('show');
+        }
+
+        // 메뉴 외부 클릭 시 닫기
+        window.addEventListener('click', () => {
+            const menu = document.getElementById('mediaMenu');
+            if (menu.classList.contains('show')) {
+                menu.classList.remove('show');
+            }
+        });
+
+        function triggerImageUpload() {
+            fileInputEl.accept = "image/*";
             fileInputEl.click(); 
+        }
+
+        let isMuted = true; // 다시 음소거 기본값으로 복구
+
+        // URL 타입 감지 및 최적화된 소스 반환 엔진
+        function parseVideoUrl(url) {
+            if (!url) return null;
+
+            // 1. YouTube 감지 (다양한 도메인 및 포맷 지원)
+            const ytRegExp = /^(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com|youtu\.be|youtube-nocookie\.com)\/(?:watch\?v=|embed\/|v\/|shorts\/)?([^#\&\?]*).*/;
+            const ytMatch = url.match(ytRegExp);
+            if (ytMatch && ytMatch[1].length === 11) {
+                const videoId = ytMatch[1];
+                // 자동재생 시 muted 정책 대응을 위해 mute=1 유지, JS API 허용
+                return {
+                    type: 'youtube',
+                    src: `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&showinfo=0&rel=0&iv_load_policy=3&modestbranding=1&enablejsapi=1`
+                };
+            }
+
+            // 2. Vimeo 감지
+            const vimRegExp = /vimeo\.com\/(?:video\/|channels\/|groups\/|album\/\d+\/video\/|showcase\/\d+\/video\/|)(\d+)(?:$|\/|\?)/;
+            const vimMatch = url.match(vimRegExp);
+            if (vimMatch) {
+                const videoId = vimMatch[1];
+                // 자동재생 대응 위해 muted=1 유지
+                return {
+                    type: 'vimeo',
+                    src: `https://player.vimeo.com/video/${videoId}?autoplay=1&loop=1&background=1&muted=1`
+                };
+            }
+
+            // 3. 일반 영상 파일
+            return { type: 'file', src: url };
+        }
+
+
+        function updateSoundUI() {
+            const btn = document.getElementById('soundToggleBtn');
+            const videoParam = getParam('v');
+            if (videoParam && videoParam.trim() !== '') {
+                btn.style.display = 'flex';
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+
+        function toggleSound() {
+            isMuted = !isMuted;
+            const soundIcon = document.getElementById('soundIcon');
+            
+            // 1. 일반 Video 요소 제어
+            if (bgVideoEl) {
+                bgVideoEl.muted = isMuted;
+                if (!isMuted) bgVideoEl.play().catch(() => {});
+            }
+            
+            // 2. 외부 Iframe (YouTube/Vimeo) 제어 - postMessage 활용
+            if (bgYoutubeEl && bgYoutubeEl.contentWindow) {
+                if (isMuted) {
+                    // YouTube Mute
+                    bgYoutubeEl.contentWindow.postMessage(JSON.stringify({"event":"command","func":"mute","args":[]}), '*');
+                    // Vimeo Mute
+                    bgYoutubeEl.contentWindow.postMessage(JSON.stringify({"method":"setVolume","value":0}), '*');
+                } else {
+                    // YouTube Unmute & Play
+                    bgYoutubeEl.contentWindow.postMessage(JSON.stringify({"event":"command","func":"unMute","args":[]}), '*');
+                    bgYoutubeEl.contentWindow.postMessage(JSON.stringify({"event":"command","func":"setVolume","args":[100]}), '*');
+                    bgYoutubeEl.contentWindow.postMessage(JSON.stringify({"event":"command","func":"playVideo","args":[]}), '*');
+                    
+                    // Vimeo Unmute & Play
+                    bgYoutubeEl.contentWindow.postMessage(JSON.stringify({"method":"setVolume","value":1}), '*');
+                    bgYoutubeEl.contentWindow.postMessage(JSON.stringify({"method":"play"}), '*');
+                }
+            }
+            
+            // UI 업데이트
+            if (isMuted) {
+                soundIcon.innerHTML = '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.06.05-.11.1-.17.14L16.25 19l1.27-1.27L13 13.47 4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>';
+                showToast("음소거되었습니다. 🔇");
+            } else {
+                soundIcon.innerHTML = '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>';
+                showToast("배경 음악이 켜졌습니다! ❤️");
+            }
+        }
+
+        function applyVideoSource(videoData) {
+            if (!videoData) {
+                bgVideoEl.removeAttribute('src');
+                bgVideoEl.style.opacity = '0';
+                bgYoutubeEl.removeAttribute('src');
+                bgYoutubeEl.style.opacity = '0';
+                return;
+            }
+
+            if (videoData.type === 'youtube' || videoData.type === 'vimeo') {
+                bgYoutubeEl.src = videoData.src;
+                bgYoutubeEl.style.opacity = (currentTheme === 'lovely') ? '0.3' : '0.45';
+                bgVideoEl.style.opacity = '0';
+                bgVideoEl.removeAttribute('src');
+            } else {
+                bgVideoEl.src = videoData.src;
+                bgVideoEl.muted = isMuted; // 현재 상태 유지
+                bgVideoEl.load();
+                bgVideoEl.play().catch(err => console.log("자동재생 시도 중:", err));
+                bgVideoEl.style.opacity = (currentTheme === 'lovely') ? '0.3' : '0.45';
+                bgYoutubeEl.style.opacity = '0';
+                bgYoutubeEl.removeAttribute('src');
+            }
+            bgImageEl.style.opacity = '0';
+            updateSoundUI(); // 버튼 표시 여부 업데이트
+        }
+
+        function promptVideoUrl() {
+            const currentVal = getParam('v') || "";
+            const url = prompt("배경 동영상 주소를 입력해주세요 (유튜브/일반링크 모두 가능):", currentVal);
+            
+            if (url !== null) {
+                const trimmedUrl = url.trim();
+                if (trimmedUrl === "") {
+                    applyVideoSource(null);
+                    updateUrlHash({ v: '' });
+                } else {
+                    const videoData = parseVideoUrl(trimmedUrl);
+                    applyVideoSource(videoData);
+                    updateUrlHash({ v: trimmedUrl, img: '' });
+                    showToast("🎥 배경 동영상이 성공적으로 설정되었습니다!");
+                    updateSoundUI();
+                }
+            }
         }
 
         // [사용자 요구사항 반영 2] 링크 복사 및 세련된 토스트 알림 탑재
@@ -753,40 +1000,6 @@
             if (file.type.startsWith('image/')) {
                 // 이미지 업로드 시 가로 180px 압축 후 해시 스키마 동기화
                 compressAndSyncImage(file);
-                
-            } else if (file.type.startsWith('video/')) {
-                // [비디오 업로드 - Gzip 압축 연동]
-                const maxBytes = 1024 * 1024; // 1MB 제한
-                if (file.size > maxBytes) {
-                    alert("⚠️ 동영상 파일 크기가 1MB를 초과합니다!\n\n1MB 이하의 비디오만 무손실 압축 후 주소창 해시 쿼리에 안전 수납 공유가 가능합니다.");
-                    return;
-                }
-
-                // 즉시 로딩 처리
-                const blobUrl = URL.createObjectURL(file);
-                bgVideoEl.src = blobUrl;
-                bgVideoEl.load();
-                bgVideoEl.muted = true;
-                bgVideoEl.loop = true;
-                bgVideoEl.play().catch(err => console.log('BGM 자동재생 대기'));
-
-                bgVideoEl.style.opacity = (currentTheme === 'lovely') ? '0.3' : '0.45';
-                bgImageEl.style.opacity = '0';
-
-                try {
-                    const arrayBuffer = await file.arrayBuffer();
-                    const compressedBuffer = await compressGzip(arrayBuffer); 
-                    const base64Data = await arrayBufferToBase64(compressedBuffer); 
-                    
-                    const gzipVideoUrl = `data:video/mp4;gzip;base64,${base64Data}`;
-                    
-                    // 주소창 해시 파라미터 v에 대입 (ReplaceState 연계로 서버 HTTP 414 원천 차단!)
-                    updateUrlHash({ v: gzipVideoUrl, img: '' });
-                    showToast("🎥 배경 동영상이 Gzip 무손실 압축되어 주소창에 저장되었습니다! 바로 공유해 보세요!");
-                    
-                } catch (compressErr) {
-                    console.error("Gzip 압축 연동 도중 에러: ", compressErr);
-                }
             }
         }
 
@@ -861,22 +1074,21 @@
             bgImageEl.style.backgroundImage = `url(${imageParam})`;
             bgImageEl.style.opacity = (initialTheme === 'lovely') ? '0.3' : '0.45';
             bgVideoEl.style.opacity = '0';
+            bgYoutubeEl.style.opacity = '0';
         } else if (videoParam && videoParam.trim() !== '') {
             if (videoParam.includes('gzip;base64,')) {
-                // Gzip 압축 스트림 배경 연동 비동기 압축 해제 구동
+                // 기존 Gzip 데이터 호환성 유지 (선택사항)
                 loadInitialGzipVideo(videoParam);
             } else {
-                // 일반 웹 동영상 주소 재생
-                bgVideoEl.src = videoParam;
-                bgVideoEl.style.opacity = (initialTheme === 'lovely') ? '0.3' : '0.45';
-                bgImageEl.style.opacity = '0';
+                // 새로운 범용 URL 파서 적용
+                const videoData = parseVideoUrl(videoParam);
+                applyVideoSource(videoData);
             }
         } else {
-            // 둘 다 없으면 기본 그라데이션만 노출
-            bgVideoEl.removeAttribute('src');
-            bgVideoEl.style.opacity = '0';
+            applyVideoSource(null);
             bgImageEl.style.opacity = '0';
         }
+        updateSoundUI();
 
         // ==========================================
         // 5. HTML5 Canvas 하트 흩날리기 & 클릭 이펙트 (연타 콤보 3D 거대 하트 강림 지원)
